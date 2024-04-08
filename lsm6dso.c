@@ -82,6 +82,7 @@ static int32_t LSM6DSO_ACC_SetOutputDataRate_When_Enabled(LSM6DSO_Object_t *pObj
 static int32_t LSM6DSO_ACC_SetOutputDataRate_When_Disabled(LSM6DSO_Object_t *pObj, float_t Odr);
 static int32_t LSM6DSO_GYRO_SetOutputDataRate_When_Enabled(LSM6DSO_Object_t *pObj, float_t Odr);
 static int32_t LSM6DSO_GYRO_SetOutputDataRate_When_Disabled(LSM6DSO_Object_t *pObj, float_t Odr);
+static void LSM6DSO_Delay(LSM6DSO_Object_t *pObj, uint32_t msDelay);
 static int32_t ReadRegWrap(void *Handle, uint8_t Reg, uint8_t *pData, uint16_t Length);
 static int32_t WriteRegWrap(void *Handle, uint8_t Reg, uint8_t *pData, uint16_t Length);
 
@@ -746,7 +747,7 @@ int32_t LSM6DSO_ACC_GetAxesRaw(LSM6DSO_Object_t *pObj, LSM6DSO_AxesRaw_t *Value)
   lsm6dso_axis3bit16_t data_raw;
 
   /* Read raw data values. */
-  if (lsm6dso_acceleration_raw_get(&(pObj->Ctx), data_raw.u8bit) != LSM6DSO_OK)
+  if (lsm6dso_acceleration_raw_get(&(pObj->Ctx), data_raw.i16bit) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -771,7 +772,7 @@ int32_t LSM6DSO_ACC_GetAxes(LSM6DSO_Object_t *pObj, LSM6DSO_Axes_t *Acceleration
   float_t sensitivity = 0.0f;
 
   /* Read raw data values. */
-  if (lsm6dso_acceleration_raw_get(&(pObj->Ctx), data_raw.u8bit) != LSM6DSO_OK)
+  if (lsm6dso_acceleration_raw_get(&(pObj->Ctx), data_raw.i16bit) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1138,7 +1139,7 @@ int32_t LSM6DSO_GYRO_GetAxesRaw(LSM6DSO_Object_t *pObj, LSM6DSO_AxesRaw_t *Value
   lsm6dso_axis3bit16_t data_raw;
 
   /* Read raw data values. */
-  if (lsm6dso_angular_rate_raw_get(&(pObj->Ctx), data_raw.u8bit) != LSM6DSO_OK)
+  if (lsm6dso_angular_rate_raw_get(&(pObj->Ctx), data_raw.i16bit) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1163,7 +1164,7 @@ int32_t LSM6DSO_GYRO_GetAxes(LSM6DSO_Object_t *pObj, LSM6DSO_Axes_t *AngularRate
   float_t sensitivity;
 
   /* Read raw data values. */
-  if (lsm6dso_angular_rate_raw_get(&(pObj->Ctx), data_raw.u8bit) != LSM6DSO_OK)
+  if (lsm6dso_angular_rate_raw_get(&(pObj->Ctx), data_raw.i16bit) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1321,23 +1322,23 @@ int32_t LSM6DSO_ACC_Enable_Free_Fall_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_S
         return LSM6DSO_ERROR;
       }
 
-      val1.md1_cfg.int1_ff = PROPERTY_ENABLE;
+      val1.free_fall = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
       break;
 
     case LSM6DSO_INT2_PIN:
-      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
 
-      val2.md2_cfg.int2_ff = PROPERTY_ENABLE;
+      val2.free_fall = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -1367,21 +1368,21 @@ int32_t LSM6DSO_ACC_Disable_Free_Fall_Detection(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.md1_cfg.int1_ff = PROPERTY_DISABLE;
+  val1.free_fall = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  val2.md2_cfg.int2_ff = PROPERTY_DISABLE;
+  val2.free_fall = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1479,7 +1480,8 @@ int32_t LSM6DSO_ACC_Set_Free_Fall_Duration(LSM6DSO_Object_t *pObj, uint8_t Durat
  */
 int32_t LSM6DSO_ACC_Enable_Pedometer(LSM6DSO_Object_t *pObj)
 {
-	lsm6dso_pin_int1_route_t val;
+  lsm6dso_pin_int1_route_t val;
+  lsm6dso_emb_sens_t emb_sens;
 
   /* Output Data Rate selection */
   if (LSM6DSO_ACC_SetOutputDataRate(pObj, 26.0f) != LSM6DSO_OK)
@@ -1493,8 +1495,31 @@ int32_t LSM6DSO_ACC_Enable_Pedometer(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
+  /* Save current embedded features */
+  if (lsm6dso_embedded_sens_get(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
+  {
+    return LSM6DSO_ERROR;
+  }
+
+  /* Turn off embedded features */
+  if (lsm6dso_embedded_sens_off(&(pObj->Ctx)) != LSM6DSO_OK)
+  {
+    return LSM6DSO_ERROR;
+  }
+
+  /* Wait for 10 ms */
+  LSM6DSO_Delay(pObj, 10);
+
   /* Enable pedometer algorithm. */
+  emb_sens.step = PROPERTY_ENABLE;
+
   if (lsm6dso_pedo_sens_set(&(pObj->Ctx), LSM6DSO_PEDO_BASE_MODE) != LSM6DSO_OK)
+  {
+    return LSM6DSO_ERROR;
+  }
+
+  /* Turn on embedded features */
+  if (lsm6dso_embedded_sens_set(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1505,9 +1530,9 @@ int32_t LSM6DSO_ACC_Enable_Pedometer(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val.emb_func_int1.int1_step_detector = PROPERTY_ENABLE;
+  val.step_detector = PROPERTY_ENABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1523,6 +1548,7 @@ int32_t LSM6DSO_ACC_Enable_Pedometer(LSM6DSO_Object_t *pObj)
 int32_t LSM6DSO_ACC_Disable_Pedometer(LSM6DSO_Object_t *pObj)
 {
   lsm6dso_pin_int1_route_t val1;
+  lsm6dso_emb_sens_t emb_sens;
 
   /* Disable step detector on INT1 pin */
   if (lsm6dso_pin_int1_route_get(&(pObj->Ctx), &val1) != LSM6DSO_OK)
@@ -1530,15 +1556,23 @@ int32_t LSM6DSO_ACC_Disable_Pedometer(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.emb_func_int1.int1_step_detector = PROPERTY_DISABLE;
+  val1.step_detector = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
+  {
+    return LSM6DSO_ERROR;
+  }
+
+  /* Save current embedded features */
+  if (lsm6dso_embedded_sens_get(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
   /* Disable pedometer algorithm. */
-  if (lsm6dso_pedo_sens_set(&(pObj->Ctx), LSM6DSO_PEDO_DISABLE) != LSM6DSO_OK)
+  emb_sens.step = PROPERTY_DISABLE;
+
+  if (lsm6dso_embedded_sens_set(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1554,7 +1588,7 @@ int32_t LSM6DSO_ACC_Disable_Pedometer(LSM6DSO_Object_t *pObj)
  */
 int32_t LSM6DSO_ACC_Get_Step_Count(LSM6DSO_Object_t *pObj, uint16_t *StepCount)
 {
-  if (lsm6dso_number_of_steps_get(&(pObj->Ctx), (uint8_t *)StepCount) != LSM6DSO_OK)
+  if (lsm6dso_number_of_steps_get(&(pObj->Ctx), StepCount) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1588,6 +1622,7 @@ int32_t LSM6DSO_ACC_Enable_Tilt_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_Sensor
   int32_t ret = LSM6DSO_OK;
   lsm6dso_pin_int1_route_t val1;
   lsm6dso_pin_int2_route_t val2;
+  lsm6dso_emb_sens_t emb_sens;
 
   /* Output Data Rate selection */
   if (LSM6DSO_ACC_SetOutputDataRate(pObj, 26.0f) != LSM6DSO_OK)
@@ -1601,8 +1636,26 @@ int32_t LSM6DSO_ACC_Enable_Tilt_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_Sensor
     return LSM6DSO_ERROR;
   }
 
-  /* Enable tilt calculation. */
-  if (lsm6dso_tilt_sens_set(&(pObj->Ctx), PROPERTY_ENABLE) != LSM6DSO_OK)
+  /* Save current embedded features */
+  if (lsm6dso_embedded_sens_get(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
+  {
+    return LSM6DSO_ERROR;
+  }
+
+  /* Turn off embedded features */
+  if (lsm6dso_embedded_sens_off(&(pObj->Ctx)) != LSM6DSO_OK)
+  {
+    return LSM6DSO_ERROR;
+  }
+
+  /* Wait for 10 ms */
+  LSM6DSO_Delay(pObj, 10);
+
+  /* Enable tilt algorithm. */
+  emb_sens.tilt = PROPERTY_ENABLE;
+
+  /* Turn on embedded features */
+  if (lsm6dso_embedded_sens_set(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1616,23 +1669,23 @@ int32_t LSM6DSO_ACC_Enable_Tilt_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_Sensor
         return LSM6DSO_ERROR;
       }
 
-      val1.emb_func_int1.int1_tilt = PROPERTY_ENABLE;
+      val1.tilt = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
       break;
 
     case LSM6DSO_INT2_PIN:
-      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
 
-      val2.emb_func_int2.int2_tilt = PROPERTY_ENABLE;
+      val2.tilt = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -1655,6 +1708,7 @@ int32_t LSM6DSO_ACC_Disable_Tilt_Detection(LSM6DSO_Object_t *pObj)
 {
   lsm6dso_pin_int1_route_t val1;
   lsm6dso_pin_int2_route_t val2;
+  lsm6dso_emb_sens_t emb_sens;
 
   /* Disable tilt event on both INT1 and INT2 pins */
   if (lsm6dso_pin_int1_route_get(&(pObj->Ctx), &val1) != LSM6DSO_OK)
@@ -1662,27 +1716,35 @@ int32_t LSM6DSO_ACC_Disable_Tilt_Detection(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.emb_func_int1.int1_tilt = PROPERTY_DISABLE;
+  val1.tilt = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  val2.emb_func_int2.int2_tilt = PROPERTY_DISABLE;
+  val2.tilt = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  /* Disable tilt calculation. */
-  if (lsm6dso_tilt_sens_set(&(pObj->Ctx), PROPERTY_DISABLE) != LSM6DSO_OK)
+  /* Save current embedded features */
+  if (lsm6dso_embedded_sens_get(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
+  {
+    return LSM6DSO_ERROR;
+  }
+
+  /* Disable tilt algorithm. */
+  emb_sens.tilt = PROPERTY_DISABLE;
+
+  if (lsm6dso_embedded_sens_set(&(pObj->Ctx), &emb_sens) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1735,23 +1797,23 @@ int32_t LSM6DSO_ACC_Enable_Wake_Up_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_Sen
         return LSM6DSO_ERROR;
       }
 
-      val1.md1_cfg.int1_wu = PROPERTY_ENABLE;
+      val1.wake_up = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
       break;
 
     case LSM6DSO_INT2_PIN:
-      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
 
-      val2.md2_cfg.int2_wu = PROPERTY_ENABLE;
+      val2.wake_up = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -1772,8 +1834,8 @@ int32_t LSM6DSO_ACC_Enable_Wake_Up_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_Sen
  */
 int32_t LSM6DSO_ACC_Disable_Wake_Up_Detection(LSM6DSO_Object_t *pObj)
 {
-	lsm6dso_pin_int1_route_t val1;
-	lsm6dso_pin_int2_route_t val2;
+  lsm6dso_pin_int1_route_t val1;
+  lsm6dso_pin_int2_route_t val2;
 
   /* Disable wake up event on both INT1 and INT2 pins */
   if (lsm6dso_pin_int1_route_get(&(pObj->Ctx), &val1) != LSM6DSO_OK)
@@ -1781,21 +1843,21 @@ int32_t LSM6DSO_ACC_Disable_Wake_Up_Detection(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.md1_cfg.int1_wu = PROPERTY_DISABLE;
+  val1.wake_up = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  val2.md2_cfg.int2_wu = PROPERTY_DISABLE;
+  val2.wake_up = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -1922,23 +1984,23 @@ int32_t LSM6DSO_ACC_Enable_Single_Tap_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_
         return LSM6DSO_ERROR;
       }
 
-      val1.md1_cfg.int1_single_tap = PROPERTY_ENABLE;
+      val1.single_tap = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
       break;
 
     case LSM6DSO_INT2_PIN:
-      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
 
-      val2.md2_cfg.int2_single_tap = PROPERTY_ENABLE;
+      val2.single_tap = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -1968,21 +2030,21 @@ int32_t LSM6DSO_ACC_Disable_Single_Tap_Detection(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.md1_cfg.int1_single_tap = PROPERTY_DISABLE;
+  val1.single_tap = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  val2.md2_cfg.int2_single_tap = PROPERTY_DISABLE;
+  val2.single_tap = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -2107,23 +2169,23 @@ int32_t LSM6DSO_ACC_Enable_Double_Tap_Detection(LSM6DSO_Object_t *pObj, LSM6DSO_
         return LSM6DSO_ERROR;
       }
 
-      val1.md1_cfg.int1_double_tap = PROPERTY_ENABLE;
+      val1.double_tap = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
       break;
 
     case LSM6DSO_INT2_PIN:
-      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
 
-      val2.md2_cfg.int2_double_tap = PROPERTY_ENABLE;
+      val2.double_tap = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -2153,21 +2215,21 @@ int32_t LSM6DSO_ACC_Disable_Double_Tap_Detection(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.md1_cfg.int1_double_tap = PROPERTY_DISABLE;
+  val1.double_tap = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  val2.md2_cfg.int2_double_tap = PROPERTY_DISABLE;
+  val2.double_tap = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -2330,23 +2392,23 @@ int32_t LSM6DSO_ACC_Enable_6D_Orientation(LSM6DSO_Object_t *pObj, LSM6DSO_Sensor
         return LSM6DSO_ERROR;
       }
 
-      val1.md1_cfg.int1_6d = PROPERTY_ENABLE;
+      val1.six_d = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
       break;
 
     case LSM6DSO_INT2_PIN:
-      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
 
-      val2.md2_cfg.int2_6d = PROPERTY_ENABLE;
+      val2.six_d = PROPERTY_ENABLE;
 
-      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -2376,21 +2438,21 @@ int32_t LSM6DSO_ACC_Disable_6D_Orientation(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.md1_cfg.int1_6d = PROPERTY_DISABLE;
+  val1.six_d = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  val2.md2_cfg.int2_6d = PROPERTY_DISABLE;
+  val2.six_d = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -3098,9 +3160,9 @@ int32_t LSM6DSO_ACC_Enable_DRDY_On_INT1(LSM6DSO_Object_t *pObj)
   {
     return LSM6DSO_ERROR;
   }
-  pin_int1_route.int1_ctrl.int1_drdy_xl = 1;
-  pin_int1_route.int1_ctrl.int1_drdy_g = 0;
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &pin_int1_route) != LSM6DSO_OK)
+  pin_int1_route.drdy_xl = 1;
+  pin_int1_route.drdy_g = 0;
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), pin_int1_route) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -3122,8 +3184,8 @@ int32_t LSM6DSO_ACC_Disable_DRDY_On_INT1(LSM6DSO_Object_t *pObj)
   {
     return LSM6DSO_ERROR;
   }
-  pin_int1_route.int1_ctrl.int1_drdy_xl = 0;
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &pin_int1_route) != LSM6DSO_OK)
+  pin_int1_route.drdy_xl = 0;
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), pin_int1_route) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -3373,8 +3435,8 @@ int32_t LSM6DSO_ACC_Enable_Inactivity_Detection(LSM6DSO_Object_t *pObj, lsm6dso_
         return LSM6DSO_ERROR;
       }
 
-      val1.md1_cfg.int1_sleep_change = PROPERTY_ENABLE;
-      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+      val1.sleep_change = PROPERTY_ENABLE;
+      if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -3382,13 +3444,13 @@ int32_t LSM6DSO_ACC_Enable_Inactivity_Detection(LSM6DSO_Object_t *pObj, lsm6dso_
     }
     case LSM6DSO_INT2_PIN:
     {
-      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
 
-      val2.md2_cfg.int2_sleep_change = PROPERTY_ENABLE;
-      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+      val2.sleep_change = PROPERTY_ENABLE;
+      if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
       {
         return LSM6DSO_ERROR;
       }
@@ -3418,21 +3480,21 @@ int32_t LSM6DSO_ACC_Disable_Inactivity_Detection(LSM6DSO_Object_t *pObj)
     return LSM6DSO_ERROR;
   }
 
-  val1.md1_cfg.int1_sleep_change = PROPERTY_DISABLE;
+  val1.sleep_change = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), &val1) != LSM6DSO_OK)
+  if (lsm6dso_pin_int1_route_set(&(pObj->Ctx), val1) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
 
-  val2.md2_cfg.int2_sleep_change = PROPERTY_DISABLE;
+  val2.sleep_change = PROPERTY_DISABLE;
 
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &val2) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, val2) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -3478,13 +3540,13 @@ int32_t LSM6DSO_GYRO_Enable_DRDY_On_INT2(LSM6DSO_Object_t *pObj)
   lsm6dso_pin_int2_route_t pin_int2_route;
 
   /* Enable gyroscope DRDY Interrupts on INT2 */
-  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), &pin_int2_route) != LSM6DSO_OK)
+  if (lsm6dso_pin_int2_route_get(&(pObj->Ctx), NULL, &pin_int2_route) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
-  pin_int2_route.int2_ctrl.int2_drdy_xl = 0;
-  pin_int2_route.int2_ctrl.int2_drdy_g = 1;
-  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), &pin_int2_route) != LSM6DSO_OK)
+  pin_int2_route.drdy_xl = 0;
+  pin_int2_route.drdy_g = 1;
+  if (lsm6dso_pin_int2_route_set(&(pObj->Ctx), NULL, pin_int2_route) != LSM6DSO_OK)
   {
     return LSM6DSO_ERROR;
   }
@@ -3781,6 +3843,21 @@ static int32_t LSM6DSO_GYRO_SetOutputDataRate_When_Disabled(LSM6DSO_Object_t *pO
                  :                    LSM6DSO_GY_ODR_6667Hz;
 
   return LSM6DSO_OK;
+}
+
+/**
+ * @brief  This function provides a minimum delay based on Tick counter
+ * @param  pObj the device pObj
+ * @param  msDelay delay expressed in ms
+ * @retval None
+ */
+static void LSM6DSO_Delay(LSM6DSO_Object_t *pObj, uint32_t msDelay)
+{
+  uint32_t tickstart = pObj->IO.GetTick();
+
+  while((pObj->IO.GetTick() - tickstart) < msDelay)
+  {
+  }
 }
 
 /**
