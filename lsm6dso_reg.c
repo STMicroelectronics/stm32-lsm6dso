@@ -1,21 +1,20 @@
-/*
- ******************************************************************************
- * @file    lsm6dso_reg.c
- * @author  Sensors Software Solution Team
- * @brief   LSM6DSO driver file
- ******************************************************************************
- * @attention
- *
- * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
- * All rights reserved.</center></h2>
- *
- * This software component is licensed by ST under BSD 3-Clause license,
- * the "License"; You may not use this file except in compliance with the
- * License. You may obtain a copy of the License at:
- *                        opensource.org/licenses/BSD-3-Clause
- *
- ******************************************************************************
- */
+/**
+  ******************************************************************************
+  * @file    lsm6dso_reg.c
+  * @author  Sensors Software Solution Team
+  * @brief   LSM6DSO driver file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2019 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
 
 #include "lsm6dso_reg.h"
 #include <stddef.h>
@@ -9898,9 +9897,11 @@ int32_t lsm6dso_pin_int1_route_set(stmdev_ctx_t *ctx,
   md1_cfg.int1_wu           = val.wake_up;
   md1_cfg.int1_single_tap   = val.single_tap;
   md1_cfg.int1_sleep_change = val.sleep_change;
+  emb_func_int1.not_used_01 = 0;
   emb_func_int1.int1_step_detector = val.step_detector;
   emb_func_int1.int1_tilt          = val.tilt;
   emb_func_int1.int1_sig_mot       = val.sig_mot;
+  emb_func_int1.not_used_02 = 0;
   emb_func_int1.int1_fsm_lc        = val.fsm_lc;
   fsm_int1_a.int1_fsm1 = val.fsm1;
   fsm_int1_a.int1_fsm2 = val.fsm2;
@@ -10217,6 +10218,7 @@ int32_t lsm6dso_pin_int2_route_set(stmdev_ctx_t *ctx,
     int2_ctrl.int2_fifo_ovr  = val.fifo_ovr;
     int2_ctrl.int2_fifo_full = val.fifo_full;
     int2_ctrl.int2_cnt_bdr   = val.fifo_bdr;
+    int2_ctrl.not_used_01    = 0;
     md2_cfg.int2_timestamp    = val.timestamp;
     md2_cfg.int2_6d           = val.six_d;
     md2_cfg.int2_double_tap   = val.double_tap;
@@ -10224,8 +10226,11 @@ int32_t lsm6dso_pin_int2_route_set(stmdev_ctx_t *ctx,
     md2_cfg.int2_wu           = val.wake_up;
     md2_cfg.int2_single_tap   = val.single_tap;
     md2_cfg.int2_sleep_change = val.sleep_change;
-    emb_func_int2. int2_step_detector = val.step_detector;
+    emb_func_int2.not_used_01 = 0;
+    emb_func_int2.int2_step_detector = val.step_detector;
     emb_func_int2.int2_tilt           = val.tilt;
+    emb_func_int2.int2_sig_mot        = val.sig_mot;
+    emb_func_int2.not_used_02 = 0;
     emb_func_int2.int2_fsm_lc         = val.fsm_lc;
     fsm_int2_a.int2_fsm1 = val.fsm1;
     fsm_int2_a.int2_fsm2 = val.fsm2;
@@ -10250,10 +10255,6 @@ int32_t lsm6dso_pin_int2_route_set(stmdev_ctx_t *ctx,
       if (ret == 0) {
         if ( ( val.drdy_temp | val.timestamp ) != PROPERTY_DISABLE ) {
           ctrl4_c.int2_on_int1 = PROPERTY_DISABLE;
-        }
-
-        else {
-          ctrl4_c.int2_on_int1 = PROPERTY_ENABLE;
         }
 
         ret = lsm6dso_write_reg(ctx, LSM6DSO_CTRL4_C, (uint8_t *)&ctrl4_c, 1);
@@ -11881,5 +11882,3 @@ int32_t lsm6dso_embedded_sens_off(stmdev_ctx_t *ctx)
   * @}
   *
   */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
